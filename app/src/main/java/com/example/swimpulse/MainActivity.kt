@@ -1,7 +1,6 @@
 package com.example.swimpulse
 
 import android.os.Bundle
-import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -12,12 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
-import kotlinx.coroutines.delay
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,26 +36,21 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun SwimPulseApp() {
-    MaterialTheme {
-        var isSwimming by remember { mutableStateOf(false) }
-        var startTimeMillis by remember { mutableLongStateOf(0L) }
+    val workoutViewModel: WorkoutViewModel = viewModel()
+    val uiState by workoutViewModel.uiState.collectAsState()
 
+    MaterialTheme {
         SwimPulseScreen(
-            isSwimming = isSwimming,
-            startTimeMillis = startTimeMillis,
-            onStart = {
-                startTimeMillis = SystemClock.elapsedRealtime()
-                isSwimming = true
-            },
-            onStop = { isSwimming = false },
+            uiState = uiState,
+            onStart = workoutViewModel::startWorkout,
+            onStop = workoutViewModel::stopWorkout,
         )
     }
 }
 
 @Composable
 private fun SwimPulseScreen(
-    isSwimming: Boolean,
-    startTimeMillis: Long,
+    uiState: WorkoutUiState,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -72,8 +62,8 @@ private fun SwimPulseScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (isSwimming) {
-            SwimMetrics(startTimeMillis = startTimeMillis)
+        if (uiState.isSwimming) {
+            SwimMetrics(elapsedMillis = uiState.elapsedMillis)
             Spacer(modifier = Modifier.height(10.dp))
             SwimActionButton(text = "Stop", onClick = onStop)
         } else {
@@ -96,16 +86,7 @@ private fun SwimTitle() {
 }
 
 @Composable
-private fun SwimMetrics(startTimeMillis: Long) {
-    var elapsedMillis by remember(startTimeMillis) { mutableLongStateOf(0L) }
-
-    LaunchedEffect(startTimeMillis) {
-        while (true) {
-            elapsedMillis = SystemClock.elapsedRealtime() - startTimeMillis
-            delay(1_000)
-        }
-    }
-
+private fun SwimMetrics(elapsedMillis: Long) {
     Text(
         text = formatElapsedTime(elapsedMillis),
         color = Color.White,
